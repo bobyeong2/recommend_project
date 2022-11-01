@@ -29,7 +29,7 @@ VCS : git
 
 ### 업데이트 이력
 - 10.28 ~ 10.29 : project initialize & recommendation System Create
-- 10.29 ~ ing   : FAST API Base File Create
+- 10.29 ~ 11.01   : FAST API Base File Create
     - DataBase(postgresql) Connect
     - User Table Create
     - DataValidation(pydantic) Create
