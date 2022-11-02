@@ -1,56 +1,41 @@
 import pandas as pd
-import numpy as np
-import warnings; warnings.filterwarnings('ignore')
-from ast import literal_eval
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import recom_func
+
 movies =pd.read_csv('./data/tmdb_5000_movies.csv')
-
+# 필요한 데이터 column만 slice
 movies_df = movies[['id','title', 'genres', 'vote_average', 'vote_count',
-                 'popularity', 'keywords', 'overview']]
+                    'popularity', 'keywords', 'overview']]
 
-movies_df['genres'] = movies_df['genres'].apply(literal_eval)
-movies_df['keywords'] = movies_df['keywords'].apply(literal_eval)
+'''
+가중 평점을 계산하기위한 변수 정의
+데이터를 보면 영화 한 편당 평점 개수의 불균형으로 영화 평점이 높은데,
+평가 건수가 1개인 경우를 제외하기 위해 평가 건수를 상위 60%만 추출하였음.
 
-movies_df['genres'] = movies_df['genres'].apply(lambda x : [ y['name'] for y in x])
-movies_df['keywords'] = movies_df['keywords'].apply(lambda x : [ y['name'] for y in x])
-
-
-
-# CountVectorizer를 적용하기 위해 공백문자로 word 단위가 구분되는 문자열로 변환. 
-movies_df['genres_literal'] = movies_df['genres'].apply(lambda x : (' ').join(x))
-count_vect = CountVectorizer(min_df=0, ngram_range=(1,2))
-genre_mat = count_vect.fit_transform(movies_df['genres_literal'])
-
-genre_sim = cosine_similarity(genre_mat, genre_mat)
-genre_sim_sorted_ind = genre_sim.argsort()[:, ::-1]
-
+'''
 percentile = 0.6
 m = movies_df['vote_count'].quantile(percentile)
 C = movies_df['vote_average'].mean()
 
-def weighted_vote_average(record):
-    v = record['vote_count']
-    R = record['vote_average']
-    
-    return ( (v/(v+m)) * R ) + ( (m/(m+v)) * C )   
 
-movies_df['weighted_vote'] = movies_df.apply(weighted_vote_average, axis=1) 
+'''
+추천서비스 실행 순서
 
-def find_sim_movie(df, sorted_ind, title_name, top_n=10):
-    title_movie = df[df['title'] == title_name]
-    title_index = title_movie.index.values
-    
-    # top_n의 2배에 해당하는 쟝르 유사성이 높은 index 추출 
-    similar_indexes = sorted_ind[title_index, :(top_n*2)]
-    similar_indexes = similar_indexes.reshape(-1)
-    
-    # 기준 영화 index는 제외
-    similar_indexes = similar_indexes[similar_indexes != title_index]
-    
-    # top_n의 2배에 해당하는 후보군에서 weighted_vote 높은 순으로 top_n 만큼 추출 
-    return df.iloc[similar_indexes].sort_values('weighted_vote', ascending=False)[:top_n]
+1. 데이터 전처리 
+2. 전처리된 DataFrame을 count vectorize 적용
+3. consine similarity 적용 
+4. 가중평점 적용
+5. 가중평점을 기준으로 검색 키워드와 유사한 영화 추천
 
-similar_movies = find_sim_movie(movies_df, genre_sim_sorted_ind, 'The Godfather',10)
+'''
+movies_df = recom_func.get_preprocess_data(movies_df)
+genre_mat = recom_func.get_count_vec(movies_df)
+genre_sim_sorted_ind = recom_func.get_cosine_similarity(genre_mat)
 
+
+# df.apply 함수를 적용하기 위해 함수 시그니쳐, 인자를 기재한 뒤 열(axis=1)로 적용
+movies_df['weighted_vote'] = movies_df.apply(recom_func.weighted_vote_average,m=m,C=C, axis=1) 
+# keyword와 비슷한 영화 중 평점이 높은(평가가 좋은) 영화 추천
+similar_movies = recom_func.find_sim_movie(movies_df, genre_sim_sorted_ind, 'American Gangster',10)
+
+# result 
 print(similar_movies[['title', 'vote_average', 'weighted_vote']])
