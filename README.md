@@ -2,7 +2,7 @@
 
 - 먼저 Content Based Filtering을 적용한 뒤 웹으로 배포할 예정임.
 - 추후 적용한 기법을 추가 및 수정할 예정
-    - counter vectorizer -> tf-idf </br>
+  - counter vectorizer -> tf-idf </br>
       cosine similariy -> pearson correlation coefficient)
 - 10.28일에 프로젝트를 시작하였으나, Github에 수정 및 오류 사항 발생 후 대처가 미흡하여 repository 삭제 후 재시작하였음.
 
@@ -16,6 +16,9 @@
 1. Issue Create
 2. Pull Request Create
 3. source code confirm & merge (self)
+
+
+** git remote prune origin 명령어 unreachable한 git object들을 "local" 에서 clean 하는 작업진행
 ```
 
 ### 개발환경
@@ -29,13 +32,18 @@ VCS : git
 ```
 
 ### 업데이트 이력
-- 10.28 ~ 10.29 : project initialize & recommendation System Create
+
+- 10.28 ~ 10.29   : project initialize & recommendation System Create
 - 10.29 ~ 11.01   : FAST API Base File Create
-    - DataBase(postgresql) Connect
-    - User Table Create
-    - DataValidation(pydantic) Create
-    - User PWD hashing apply
-    - "create user" API router Create
-    - Config File Create
-    - DI(dependency injection) Create
-    
+  - DataBase(postgresql) Connect
+  - User Table Create
+  - DataValidation(pydantic) Create
+  - User PWD hashing apply
+  - "create user" API router Create
+  - Config File Create
+  - DI(dependency injection) Create
+- 11.02 ~ ing     : Recommend API Create
+  - Recommend API Create
+  - Data Validation schemas Create
+  - recommend_sys insert into recommend_web
+    - because recommend function import error problem
