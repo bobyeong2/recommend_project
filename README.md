@@ -42,8 +42,10 @@ VCS : git
   - "create user" API router Create
   - Config File Create
   - DI(dependency injection) Create
-- 11.02 ~ ing     : Recommend API Create
+- 11.02 ~ 11.02   : Recommend API Create
   - Recommend API Create
   - Data Validation schemas Create
-  - recommend_sys insert into recommend_web
+  - "recommend_sys" insert into "recommend_web"
     - because recommend function import error problem
+
+  - 11.25 ~ 11.02 : Search function modified
