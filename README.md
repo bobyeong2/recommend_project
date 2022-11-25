@@ -48,4 +48,4 @@ VCS : git
   - "recommend_sys" insert into "recommend_web"
     - because recommend function import error problem
 
-  - 11.25 ~ 11.02 : Search function modified
+  - 11.25 ~ 11.25 : Search function modify

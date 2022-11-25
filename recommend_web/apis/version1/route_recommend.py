@@ -27,7 +27,6 @@ def create_recommend_items(keyword:str):
     # 전처리한 타이틀을 사용자 입력에 맞게 검색 // keyword의 띄어쓰기 제거
     keyword = keyword.replace(" ","").lower()
     
-    print(keyword)
     keyword = movies[movies['preprocessed'].str.contains(keyword,na=True)]['title'].reset_index(drop=True)
     if len(keyword) :
         similar_movies = recom_func.find_sim_movie(movies_df, genre_sim_sorted_ind,keyword[0] ,10)
