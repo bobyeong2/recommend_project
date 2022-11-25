@@ -1,14 +1,17 @@
 from fastapi import APIRouter
 import pandas as pd
-from pandas import DataFrame,Series
 
 router = APIRouter()
 
-from recommend_sys import recom_func
+from recommend_lib import recom_func
+
+movies =pd.read_csv('/root/08_recommend_system/recommend_web/recommend_lib/data/tmdb_5000_movies.csv')
+movies['preprocessed'] = movies['title'].str.lower()
+movies['preprocessed'] = movies['preprocessed'].str.replace(" ","")
+
 
 @router.post("/create")
-def create_recommend_items(keyword):
-    movies =pd.read_csv('/root/08_recommend_system/recommend_func/data/tmdb_5000_movies.csv')
+def create_recommend_items(keyword:str):
     movies_df = movies[['id','title', 'genres', 'vote_average', 'vote_count',
                     'popularity', 'keywords', 'overview']]
     percentile = 0.6
@@ -21,6 +24,17 @@ def create_recommend_items(keyword):
 
     movies_df['weighted_vote'] = movies_df.apply(recom_func.weighted_vote_average,m=m,C=C, axis=1) 
 
-    similar_movies = recom_func.find_sim_movie(movies_df, genre_sim_sorted_ind,keyword ,10)
+    # 전처리한 타이틀을 사용자 입력에 맞게 검색 // keyword의 띄어쓰기 제거
+    keyword = keyword.replace(" ","").lower()
+    
+    print(keyword)
+    keyword = movies[movies['preprocessed'].str.contains(keyword,na=True)]['title'].reset_index(drop=True)
+    if len(keyword) :
+        similar_movies = recom_func.find_sim_movie(movies_df, genre_sim_sorted_ind,keyword[0] ,10)
+        return similar_movies[['title']],{"searched_keyword":keyword[0]}
+    else :
+        return {"errmsg":"Not Mathched keyword",
+                "state_code":400
+                }
 
-    return similar_movies[['title']]
+    
