@@ -1,0 +1,35 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: bob_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: bob_movie_db
+      MYSQL_USER: bob_user
+      MYSQL_PASSWORD: bobpass
+    ports:
+      - "13306:3306" 
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: bob_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  mysql_data:
+
+# 기존 컨테이너 정리
+# docker-compose down
+
+# 다시 실행
+# docker-compose up -d
+
+# 연결 테스트 (포트 3307로)
+# docker exec -it bob_mysql mysql -u bob_user -pbobpass bob_movie_db -e "SELECT 1;"
+
+# 또는 로컬에서
+# mysql -h 127.0.0.1 -P 3307 -u bob_user -pbobpass bob_movie_db
