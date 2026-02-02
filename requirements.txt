@@ -1,0 +1,32 @@
+# requirements.txt
+# Python 3.11.18 호환 버전
+
+# FastAPI
+fastapi[standard]
+
+# Database
+sqlalchemy
+aiomysql
+alembic
+pymysql
+
+# Data Processing
+pandas
+chardet
+numpy
+
+# Password & JWT
+passlib[bcrypt]
+python-jose[cryptography]
+bcrypt
+
+# Environment
+python-dotenv
+pydantic
+pydantic-settings
+
+# Redis
+redis
+
+# Utils
+python-dateutil
