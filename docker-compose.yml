@@ -1,4 +1,23 @@
 services:
+
+  app:
+  build: .
+  contariner_name : bob_app
+  ports:
+    - "8000:8000"
+  depends_on:
+    - mysql
+    - redis
+  environment:
+    DB_HOST: mysql # 컨테이너 이름  X, 서비스 명으로 접근
+    DB_PORT: 3306 # 내부 포트 사용
+    DB_USER: bob_user
+    DB_PASSWORD: bobpass
+    DB_NAME: bob_movie_db
+    REDIS_HOST: redis
+
+  volumes:
+    - .:/app # 개발 시 코드 변경 실시간 반영
   mysql:
     image: mysql:8.0
     container_name: bob_mysql
