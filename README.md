@@ -185,84 +185,80 @@ v1.5.0 (2025-02-25)
 🎯 주요 기능 추가
 1. 평점 시스템 완성
 
-평점 등록 (POST /api/v1/ratings)
-평점 목록 조회 (GET /api/v1/ratings)
-특정 영화 평점 조회 (GET /api/v1/ratings/movie/{id})
-평점 수정 (PUT /api/v1/ratings/{id})
-평점 삭제 (DELETE /api/v1/ratings/{id})
-평점 통계 (GET /api/v1/ratings/stats/summary)
+- 평점 등록 (POST /api/v1/ratings)
+- 평점 목록 조회 (GET /api/v1/ratings)
+- 특정 영화 평점 조회 (GET /api/v1/ratings/movie/{id})
+- 평점 수정 (PUT /api/v1/ratings/{id})
+- 평점 삭제 (DELETE /api/v1/ratings/{id})
+- 평점 통계 (GET /api/v1/ratings/stats/summary)
 
 2. 인증 시스템 구현
 
-JWT 기반 인증 (Access Token + Refresh Token)
-회원가입 (POST /api/v1/auth/register)
-로그인 (POST /api/v1/auth/login)
-토큰 갱신 (POST /api/v1/auth/refresh)
-로그아웃 (POST /api/v1/auth/logout)
+- JWT 기반 인증 (Access Token + Refresh Token)
+- 회원가입 (POST /api/v1/auth/register)
+- 로그인 (POST /api/v1/auth/login)
+- 토큰 갱신 (POST /api/v1/auth/refresh)
+- 로그아웃 (POST /api/v1/auth/logout)
 
 3. 데이터베이스 설계
 
-users 테이블 (서비스 사용자)
-user_ratings 테이블 (사용자 평점)
-movies 테이블 (영화 정보)
-training_users, training_ratings 테이블 (학습 데이터)
+- users 테이블 (서비스 사용자)
+- user_ratings 테이블 (사용자 평점)
+- movies 테이블 (영화 정보)
+- training_users, training_ratings 테이블 (학습 데이터)
 
 🛠 인프라 구축
 
-Docker Compose 환경 구성
+- Docker Compose 환경 구성
 
-MySQL 8.0 (포트 13306)
-Redis 7 (포트 6379)
-
-
-Alembic 마이그레이션 설정
+- MySQL 8.0 (포트 13306)
+- Redis 7 (포트 6379)
+- Alembic 마이그레이션 설정
 
 
 v1.0.0 (2025-01-23)
 🎯 ML 모델 개발
 1. NCF 모델 학습
 
-Neural Collaborative Filtering 구현 (PyTorch)
-하이퍼파라미터 최적화
+- Neural Collaborative Filtering 구현 (PyTorch)
+- 하이퍼파라미터 최적화
 
-Embedding Dimension: 32
-Hidden Layers: [64, 32, 16]
-Dropout: 0.1
-Learning Rate: 0.001
+- Embedding Dimension: 32
+- Hidden Layers: [64, 32, 16]
+- Dropout: 0.1
+- Learning Rate: 0.001
 
-
-GPU 가속 학습 (Mixed Precision)
-모델 저장 (best_ncf_model.pth)
+- GPU 가속 학습 (Mixed Precision)
+- 모델 저장 (best_ncf_model.pth)
 
 2. 데이터 임포트 파이프라인
 
-영화 데이터 임포트 (20,000+ 편)
-학습용 사용자 데이터 임포트 (140,000+ 명)
-평점 데이터 임포트 (79,000,000+ 건)
-데이터 검증 스크립트
+- 영화 데이터 임포트 (20,000+ 편)
+- 학습용 사용자 데이터 임포트 (140,000+ 명)
+- 평점 데이터 임포트 (79,000,000+ 건)
+- 데이터 검증 스크립트
 
 3. 추천 로직 구현
 
-app/ml/inference/predictor.py: MovieRecommender 클래스
-기본 NCF 예측 로직
-학습 데이터 기반 추천
-
+- app/ml/inference/predictor.py: MovieRecommender 클래스
+- 기본 NCF 예측 로직
+- 학습 데이터 기반 추천
 
 v0.1.0 (2025-01-22)
 🎯 프로젝트 초기 설정
 1. 프로젝트 구조 설계
 
-FastAPI 프로젝트 구조 설계
-SQLAlchemy 비동기 ORM 설정
-Pydantic 스키마 정의
+- FastAPI 프로젝트 구조 설계
+- SQLAlchemy 비동기 ORM 설정
+- Pydantic 스키마 정의
 
 2. 개발 환경 구축
 
-Python 3.11 가상환경 설정
-requirements.txt 작성
-Git 저장소 초기화
+- Python 3.11 가상환경 설정
+- requirements.txt 작성
+- Git 저장소 초기화
 
 3. 학습 데이터 수집
 
-네이버, 다음, 왓챠 크롤링 데이터 확보
-CSV 파일 정제 및 저장
+- 네이버, 다음, 왓챠 크롤링 데이터 확보
+- CSV 파일 정제 및 저장
