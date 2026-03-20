@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.api.v1.api import api_router
 from app.ml.inference.predictor import MovieRecommender
 
+from app.core.redis_client import redis_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,10 +25,25 @@ async def lifespan(app: FastAPI):
     print("서비스 준비 완료!")
     print("=" * 70)
     
+    # Redis 연결
+    print("Redis 연결 중...")
+    await redis_client.connect(settings.REDIS_URL)
+    print("=" * 70)
+    print(" 서비스 준비 완료!")
+    print("=" * 70)
+    
     yield
     
-    # 종료 시 정리 작업
+    # ==================== 종료 ====================
+    print("=" * 70)
     print("서비스 종료 중...")
+    print("=" * 70)
+    
+    # Redis 연결 종료
+    print("🔌 Redis 연결 종료 중...")
+    await redis_client.disconnect()
+    
+    print("✅ 서비스 종료 완료")
 
 
 # FastAPI 앱 생성
@@ -65,8 +81,13 @@ async def root():
 @app.get("/health")
 async def health_check():
     """상세 헬스 체크"""
+    # Redis 연결 상태 확인
+    redis_connected = redis_client.redis is not None
+    
     return {
         "status": "healthy",
         "model_loaded": True,
-        "database": "connected"
+        "database": "connected",
+        "redis": "connected" if redis_connected else "disconnected"
     }
+    
