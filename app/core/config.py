@@ -21,4 +21,5 @@ class Settings(BaseSettings):
         case_sensitive=False
     )
 
+    REDIS_URL: str = "redis://localhost:6379/0"
 settings = Settings()

@@ -9,6 +9,10 @@ from app.models.user_rating import UserRating
 from app.models.movie import Movie
 from app.schemas.rating import RatingCreate, RatingUpdate, RatingResponse, RatingWithMovie
 from app.api.dependencies import get_current_user
+from app.core.redis_client import redis_client # 260320 추가
+import logging # 260320 추가
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -66,7 +70,11 @@ async def create_rating(
     await db.commit()
     await db.refresh(new_rating)
     
-    return new_rating
+    # 평점 등록 후 캐시 무효화
+    await redis_client.invalidate_user_cache(current_user.id)
+    logger.info(f" 캐시 무효화: user_id={current_user.id}")
+    
+    return RatingResponse.model_validate(new_rating)
 
 
 @router.get("", response_model=List[RatingWithMovie])
@@ -166,7 +174,11 @@ async def update_rating(
     await db.commit()
     await db.refresh(rating)
     
-    return rating
+    # 평점 수정 후 캐시 무효화 추가
+    await redis_client.invalidate_user_cache(current_user.id)
+    logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
+    
+    return RatingResponse.model_validate(rating)
 
 
 @router.delete("/{rating_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -197,6 +209,11 @@ async def delete_rating(
     # 평점 삭제
     await db.delete(rating)
     await db.commit()
+
+    # 평점 삭제 후 캐시 무효화 추가
+    await redis_client.invalidate_user_cache(current_user.id)
+    logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
+    
 
 
 @router.get("/stats/summary")
