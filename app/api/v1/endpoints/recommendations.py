@@ -76,7 +76,7 @@ async def get_my_recommendations(
     # 추천 (임시로 training_user_id 1 사용)
     # 추후 하이브리드 추천 로직 적용
     rec = get_recommender()
-    recommendations = rec.recommend(1,all_movie_ids,top_k)
+    recommendations = rec.recommend(user_id,all_movie_ids,top_k)
     
     # 영화 정보 조회
     movie_ids = [r['movie_id'] for r in recommendations]
