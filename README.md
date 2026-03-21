@@ -27,9 +27,11 @@ Neural Collaborative Filtering 기반 영화 추천 서비스
 
 **Backend**
 - FastAPI (비동기 웹 프레임워크)
-- MySQL 8.0 + Redis 7
+- MySQL 8.0 (데이터베이스)
+- Redis 7 (캐싱 & 세션 관리) ← 강조
 - SQLAlchemy (Async ORM)
-- JWT 인증
+- JWT 인증 (Access + Refresh Token)
+
 
 **Machine Learning**
 - PyTorch (NCF 모델)
@@ -111,6 +113,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - **평점 1~4개**: 콘텐츠 기반 (장르 유사도)
 - **평점 5개 이상**: 하이브리드 (NCF + 협업 필터링)
 
+### Redis 캐싱 시스템
+- **추천 결과 캐싱**: 1시간 TTL
+- **자동 무효화**: 평점 변경 시
+- **성능**: 응답 속도 29배 향상 (321ms → 11ms)
+- **JWT 블랙리스트**: 로그아웃한 토큰 관리
+
 ---
 
 ## 📁 프로젝트 구조
@@ -181,6 +189,23 @@ MIT License
 - 네이버, 다음, 왓챠 영화 데이터
 
 # 업데이트 내역
+
+v.2.0.0 (2025-03-20)
+⚡ 성능 개선
+- Redis 캐싱 시스템 도입 : 추천 API 응답 속도 29배 향상
+  - 첫 요청: 321ms (모델 연산)
+  - 캐시 히트: 11ms
+- 평점 변경 시 자동 캐시 무효화
+- JWT Refresh Token 블랙 리스트 구현
+
+🎯 주요 기능 추가
+- 영화 상세 조회 API (`GET /api/v1/movies/{id}`)
+- Redis 기반 캐싱 시스템 (TTL: 1hour)
+
+⚡ 개발 환경 개선
+- Github Template 추가 (PR/Issue)
+- docker-compose.yml 정리
+
 v1.5.0 (2025-02-25)
 🎯 주요 기능 추가
 1. 평점 시스템 완성
