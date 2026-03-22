@@ -13,7 +13,7 @@ pymysql
 # Data Processing
 pandas
 chardet
-numpy
+numpy<2
 
 # Password & JWT
 passlib[bcrypt]
@@ -30,3 +30,10 @@ redis
 
 # Utils
 python-dateutil
+pytest-asyncio
+pytest
+httpx
+
+# DL
+torch==2.1.0
+torchvision==0.16.0

@@ -37,6 +37,9 @@ scikit-learn = "*"
 psutil = "*"
 pydantic = {extras = ["email"], version = "*"}
 pymysql = "*"
+pytest = "*"
+httpx = "*"
+pytest-asyncio = "*"
 redis = "*"
 
 [dev-packages]
