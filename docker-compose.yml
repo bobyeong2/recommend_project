@@ -1,28 +1,29 @@
 services:
-  # FastAPI 애플리케이션
   app:
     build: .
-    container_name: bob_app  # 오타 수정: contariner_name → container_name
+    container_name: bob_app
     ports:
       - "8000:8000"
     depends_on:
       - mysql
       - redis
     environment:
-      # DB 연결 정보 (컨테이너 간 통신)
-      DB_HOST: mysql        # 서비스 이름으로 접근
-      DB_PORT: 3306         # 컨테이너 내부 포트
+      # DB
+      DB_HOST: mysql
+      DB_PORT: 3306
       DB_USER: bob_user
       DB_PASSWORD: bobpass
       DB_NAME: bob_movie_db
+
+      # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379/0
     volumes:
-      - .:/app              # 개발 시 코드 변경 실시간 반영
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload  # 개발 모드
+      - .:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
-  # MySQL 데이터베이스
   mysql:
     image: mysql:8.0
     container_name: bob_mysql
@@ -32,13 +33,12 @@ services:
       MYSQL_USER: bob_user
       MYSQL_PASSWORD: bobpass
     ports:
-      - "13306:3306"        # 호스트:컨테이너
+      - "13306:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
 
-  # Redis 캐시
   redis:
     image: redis:7-alpine
     container_name: bob_redis
