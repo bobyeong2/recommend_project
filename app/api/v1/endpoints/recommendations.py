@@ -6,7 +6,8 @@ from typing import List, Dict #260322추가
 from app.core.database import get_db
 from app.models.movie import Movie
 from app.models.user_rating import UserRating # 260320추가
-from app.models.training import TrainingRating #260322추가
+# from app.models.training import TrainingRating #260322추가
+from app.models.movie_stats import MovieStats #260323추가
 from app.models.user import User # 260320추가
 from app.ml.inference.predictor import MovieRecommender
 from app.schemas.recommendation import (
@@ -39,15 +40,17 @@ def get_recommender() -> MovieRecommender:
 async def get_movie_stats(db : AsyncSession) -> List[Dict]:
     """
     모든 영화의 통계 정보 조회 (인기 추천용)
+    
+    기존: training_ratings 79M row Group by (7Min)
+    개선: movie_stats 약 2만행 select (밀리초)
     """
     result = await db.execute(
         select(
-            TrainingRating.movie_id,
-            func.avg(TrainingRating.rating).label("avg_rating"),
-            func.count(TrainingRating.id).label("rating_count")
+            MovieStats.movie_id,
+            MovieStats.avg_rating,
+            MovieStats.rating_count
         )
-        .group_by(TrainingRating.movie_id)
-        .having(func.count(TrainingRating.id) >= 10) # 최소 10개 평점
+        .where(MovieStats.rating_count >= 10)
     )
     
     return [
@@ -114,25 +117,15 @@ async def calculate_collaborative_scores(
     간단한 User-based CF:
     1. 시용자와 비슷한 평점 패턴을 가진 사용자를 찾은 뒤
     2. 그들이 높게 평가한 영화를 점수화함
-    """
     
-    user_ratings_result = await db.execute(
-        select(UserRating.movie_id, UserRating.rating)
-        .where(UserRating.user_id == user_id)
-    )
-    user_ratings = { r.movie_id: r.rating for r in user_ratings_result.fetchall()}
-
-    if not user_ratings:
+    기존: training_ratings 79M row 에서 candiate 2만개 groupby (약7 - 9분)
+    개선: movie_stats에서 candidate IN 조회 (밀리초)
+    """
+    if not candidate_movie_ids:
         return {}
-
-    # 간단한 CF (추후 업데이트 예정)
     result = await db.execute(
-        select(
-            TrainingRating.movie_id,
-            func.avg(TrainingRating.rating).label("avg_rating")
-        )
-        .where(TrainingRating.movie_id.in_(candidate_movie_ids))
-        .group_by(TrainingRating.movie_id)
+        select(MovieStats.movie_id, MovieStats.avg_rating)
+        .where(MovieStats.movie_id.in_(candidate_movie_ids))
     )
     
     return {

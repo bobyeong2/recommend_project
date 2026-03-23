@@ -34,6 +34,9 @@ class MovieRecommender:
         self.user_mapping = checkpoint["user_mapping"]
         self.item_mapping = checkpoint["item_mapping"]
         
+        # 서비스 유저 매핑 (retrain 후에만 존재)
+        self.service_user_mapping = checkpoint.get("service_user_mapping",{})
+        
         # 역매핑
         self.idx_to_item = {idx: iid for iid, idx in self.item_mapping.items()}
         self.idx_to_user = {idx: uid for uid, idx in self.user_mapping.items()}
@@ -60,6 +63,27 @@ class MovieRecommender:
         print(f"  - Device: {self.device}")
         print(f"  - RMSE: {checkpoint['rmse']:.4f}")
         print(f"  - Users: {self.n_users:,}, Items: {self.n_items:,}")
+
+        if self.service_user_mapping:
+            print(f"  - Service users: {len(self.service_user_mapping)} (NCF enabled)")
+        else:
+            print(f"  - Service users: cold start only (retrain not yet executed)")
+    
+    def _resolve_user_idx(self, user_id: int) -> int:
+        """
+        user_id를 NCF 내부 인덱스로 변환
+        
+        조회순서
+        1. service_user_mapping(서비스 유저, 재학습 후)
+        2. user_mapping (training data)
+        3. None (cold start)
+        """
+        if user_id in self.service_user_mapping:
+            return self.service_user_mapping[user_id]
+        if user_id in self.user_mapping:
+            return self.user_mapping[user_id]
+        return None
+    
     
     def predict(self, user_id: int, movie_ids: List[int]) -> Dict[int, float]:
         """
@@ -72,12 +96,12 @@ class MovieRecommender:
         """
         
         predictions = {}
+        # user index 조회
+        user_idx = self._resolve_user_idx(user_id)
         
-        # User Cold Start
-        if user_id not in self.user_mapping:
-            return {mid: self.global_mean for mid in movie_ids}
-        
-        user_idx = self.user_mapping[user_id]
+        if user_idx is None:
+            # 신규 사용자 (재학습에 포함되지 않은 사용자)
+            return {mid : self.global_mean for mid in movie_ids}
         
         # Warm items와 Cold items 분리
         warm_items = []
@@ -291,3 +315,10 @@ class MovieRecommender:
             for movie_id, rating in sorted_movies
         ]
         
+    @classmethod
+    def reload(cls):
+        """
+        Model Hot reload (재학습 후 호출)
+        싱글톤 인스턴스를 초기화해서 새로운 모델을 로드
+        """
+        cls._instance = None 
