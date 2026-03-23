@@ -8,17 +8,12 @@ services:
       - mysql
       - redis
     environment:
-      # DB
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: bob_user
-      DB_PASSWORD: bobpass
-      DB_NAME: bob_movie_db
-
-      # Redis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      DATABASE_URL: mysql+aiomysql://bob_user:bobpass@mysql:3306/bob_movie_db
       REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
     volumes:
       - .:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -48,15 +43,3 @@ services:
 
 volumes:
   mysql_data:
-
-# 기존 컨테이너 정리
-# docker-compose down
-
-# 다시 실행
-# docker-compose up -d
-
-# 연결 테스트 (포트 3307로)
-# docker exec -it bob_mysql mysql -u bob_user -pbobpass bob_movie_db -e "SELECT 1;"
-
-# 또는 로컬에서
-# mysql -h 127.0.0.1 -P 3307 -u bob_user -pbobpass bob_movie_db

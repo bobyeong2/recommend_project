@@ -12,7 +12,12 @@ class Settings(BaseSettings):
     
     MODEL_PATH: str = "models/best_ncf_model.pth"
     
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ]
     REDIS_URL: str = "redis://localhost:6379/0"  # 기본값
     
     # Pydantic v2 방식

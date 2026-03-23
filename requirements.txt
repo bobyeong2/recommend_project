@@ -37,3 +37,5 @@ httpx
 # DL
 torch==2.1.0
 torchvision==0.16.0
+# bcrypt 버전 고정
+bcrypt==4.0.1
