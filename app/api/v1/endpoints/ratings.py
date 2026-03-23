@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query,BackgroundTasks #260323추가
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from typing import List
@@ -10,6 +10,7 @@ from app.models.movie import Movie
 from app.schemas.rating import RatingCreate, RatingUpdate, RatingResponse, RatingWithMovie
 from app.api.dependencies import get_current_user
 from app.core.redis_client import redis_client # 260320 추가
+from app.services.movie_stats_updater import run_update_movie_stats #260323추가
 import logging # 260320 추가
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ router = APIRouter()
 @router.post("", response_model=RatingResponse, status_code=status.HTTP_201_CREATED)
 async def create_rating(
     rating_data: RatingCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -74,6 +76,8 @@ async def create_rating(
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f" 캐시 무효화: user_id={current_user.id}")
     
+    # movie_stats 갱신 (BackgroundTask)
+    background_tasks.add_task(run_update_movie_stats, rating_data.movie_id)
     return RatingResponse.model_validate(new_rating)
 
 
@@ -147,6 +151,7 @@ async def get_my_rating_for_movie(
 async def update_rating(
     rating_id: int,
     rating_data: RatingUpdate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -170,6 +175,7 @@ async def update_rating(
         )
     
     # 평점 수정
+    movie_id = rating.movie_id
     rating.rating = rating_data.rating
     await db.commit()
     await db.refresh(rating)
@@ -178,12 +184,16 @@ async def update_rating(
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
     
+    # movie_stats 갱신(BackgroundTask)
+    background_tasks.add_task(run_update_movie_stats, movie_id)
+    
     return RatingResponse.model_validate(rating)
 
 
 @router.delete("/{rating_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_rating(
     rating_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -207,12 +217,16 @@ async def delete_rating(
         )
     
     # 평점 삭제
+    movie_id = rating.movie_id
     await db.delete(rating)
     await db.commit()
 
     # 평점 삭제 후 캐시 무효화 추가
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
+    
+    # movie_stats 갱신(BackgroundTask)
+    background_tasks.add_task(run_update_movie_stats, movie_id)
     
 
 
