@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.movie import Movie
 from app.models.user_rating import UserRating
 from app.models.training import TrainingUser,TrainingRating  # 추가
+from app.models.movie_stats import MovieStats  # 추가
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
