@@ -162,3 +162,4 @@ saved_models/
 models/*.pth
 movie_features.pkl
 data/
+logs/
