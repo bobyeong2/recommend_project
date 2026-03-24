@@ -48,6 +48,21 @@ async def test_recommedation_strategy_popular():
         avg_rating = sum(r["predicted_rating"] for r in data["recommendations"]) / len((data["recommendations"]))
         assert avg_rating >= 7.0
 
+        # 새로운 필드 검증
+        assert "strategy" in data
+        assert data["strategy"] == "popular"
+        
+        # 첫 번째 추천 아이템 검증
+        first_rec = data["recommendations"][0]
+        assert "movie_id" in first_rec
+        assert "title" in first_rec
+        assert "predicted_rating" in first_rec
+        # reason, genres는 Optional이므로 있으면 확인
+        if "reason" in first_rec:
+            assert isinstance(first_rec["reason"], str)
+        if "genres" in first_rec:
+            assert isinstance(first_rec["genres"], str)
+            
 @pytest.mark.asyncio
 async def test_recommendation_strategy_content_based():
     async with AsyncClient(
@@ -92,6 +107,11 @@ async def test_recommendation_strategy_content_based():
         
         assert "recommendations" in data
         assert len(data["recommendations"]) > 0
+        
+        # 새로운 필드 검증
+        assert "strategy" in data
+        assert data["strategy"] == "content_based"
+        
 
 @pytest.mark.asyncio
 async def test_recommendation_strategy_hybrid():
@@ -141,3 +161,8 @@ async def test_recommendation_strategy_hybrid():
         
         assert "recommendations" in data
         assert len(data["recommendations"]) > 0
+
+        # 새로운 필드 검증
+        assert "strategy" in data
+        assert data["strategy"] == "hybrid"
+        
