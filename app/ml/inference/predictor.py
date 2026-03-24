@@ -163,7 +163,94 @@ class MovieRecommender:
             for movie_id, rating in sorted_movies
         ]
         
+    
+    def apply_mmr_diversity(
+        self,
+        candidates: List[Dict],
+        top_k: int = 10,
+        lambda_param: float = 0.7
+    ) -> List[Dict]:
+        """
+        MMR (Maximal Marginal Relevance)로 다양성을 보정함
+        -> 최대 한계 관련성(Maximum Marginal Relevance, MMR) 검색 방식은 유사성과 다양성의 균형을 맞추어 검색 결과의 품질을 향상시키는 알고리즘
         
+        Args:
+            candidates: [{"movie_id":int, "predicted_rating": float, "genres":str}, ...]
+            top_k: 최종 선택할 개수
+            lambda_param: 관련성 vs 다양성의 균형 (0 - 1, 높을수록 관련성 우선)
+        
+        Returns:
+            다양성이 보정된 추천 목록
+        """
+        if not candidates or len(candidates) <= top_k:
+            return candidates[:top_k]
+        
+        # 장르 파싱 헬퍼
+        def parse_genres(genres_str):
+            if  not genres_str:
+                return set()
+            return set(genres_str.split(","))
+        
+        # 자카드 유사도 계산
+        def jaccard_similarity(genres1, genres2):
+            if not genres1 or not genres2:
+                return 0.0
+            intersection = len(genres1 & genres2)
+            union = len(genres1 | genres2)
+            return intersection / union if union > 0 else 0.0
+        
+        # 후보들의 장르 파싱
+        for cand in candidates:
+            cand["_genres_set"] = parse_genres(cand.get("genres",""))
+            
+        # 점수 정규화 (0-1)
+        scores = [c["predicted_rating"] for c in candidates]
+        min_score, max_score = min(scores), max(scores)
+        score_range = max_score - min_score if max_score > min_score else 1.0
+        
+        for cand in candidates:
+            cand["_norm_score"] = (cand["predicted_rating"] - min_score) / score_range
+    
+        # MMR 선택
+        selected = []
+        remaining_indices = list(range(len(candidates)))
+        
+        # 첫 번째는 최고 점수
+        best_idx = max(remaining_indices, key=lambda i: candidates[i]['_norm_score'])
+        selected.append(candidates[best_idx])
+        remaining_indices.remove(best_idx)
+        
+        # 나머지 선택
+        while len(selected) < top_k and remaining_indices:
+            mmr_scores = []
+            
+            for idx in remaining_indices:
+                cand = candidates[idx]
+                
+                # Relevance (관련성)
+                relevance = cand['_norm_score']
+                
+                # Max similarity (이미 선택된 것들과의 최대 유사도)
+                max_sim = max(
+                    jaccard_similarity(cand['_genres_set'], s['_genres_set'])
+                    for s in selected
+                )
+                
+                # MMR 점수
+                mmr = lambda_param * relevance - (1 - lambda_param) * max_sim
+                mmr_scores.append((idx, mmr))
+            
+            # 최고 MMR 선택
+            best_idx, _ = max(mmr_scores, key=lambda x: x[1])
+            selected.append(candidates[best_idx])
+            remaining_indices.remove(best_idx)
+        
+        # 임시 필드 제거
+        for item in selected:
+            item.pop('_genres_set', None)
+            item.pop('_norm_score', None)
+        
+        return selected
     def recommend_popular(
         self,
         movie_stats: List[Dict], # [{"movie_id": int, "avg_rating": float, "rating_count": int}, ...]
