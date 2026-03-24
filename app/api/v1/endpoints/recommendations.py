@@ -136,6 +136,7 @@ async def calculate_collaborative_scores(
 @router.get("",response_model=RecommendationResponse)
 async def get_my_recommendations(
     top_k: int = Query(10, ge=1, le=100, description="추천 영화 개수"),
+    apply_mmr: bool = Query(True, description="MMR 다양성 보장 적용 여부"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -144,6 +145,7 @@ async def get_my_recommendations(
     로그인한 사용자 맞춤 추천 (Redis 캐싱)
     
     - top_k : 추천할 영화 개수 (기본 10개)
+    - apply_mmr : MMR 다양성 보정 적용 여부 (default True)
     """
     
     user_id = current_user.id
@@ -172,23 +174,33 @@ async def get_my_recommendations(
     
     # 전략 선택
     rec = get_recommender()
+    strategy = ""
+    reason_template = ""
     if rating_count == 0 :
         # 신규 사용자용
         logger.info(f"인기 영화 추천: user_id={user_id}")
+        strategy = "popular"
+        reason_template = "많은 사양자가 높게 평가한 인기영화"
+        
         movie_stats = await get_movie_stats(db)
-        recommendations = rec.recommend_popular(movie_stats, top_k)
+        recommendations = rec.recommend_popular(movie_stats, top_k * 2) # MMR을 위해 top_k의 2배를 지정
         
     elif rating_count <= 4:
         # 초기 사용자: CBF 기반
-        logger.info(f"CBF 기반 추천: user_id = {user_id}, rating_count={rating_count}") 
+        logger.info(f"CBF 기반 추천: user_id = {user_id}, rating_count={rating_count}")
+        strategy = "content_based"
+        reason_template = "종하사는 영화와 유사한 장르"
+        
         user_rated_movies = await get_user_rated_movies_with_genres(db, user_id)
         rated_movie_ids = [r["movie_id"] for r in user_rated_movies]
         candiate_movies = await get_candidate_movies_with_genres(db, rated_movie_ids)
-        recommendations = rec.recommend_content_based(user_rated_movies, candiate_movies, top_k)
+        recommendations = rec.recommend_content_based(user_rated_movies, candiate_movies, top_k * 2)
     
     else :
-        # 그외 사용자
+        # 그외 사용자 (충분한 평점을 갖고 있는 경우)
         logger.info(f"하이브리드 추천: user_id = {user_id}, rating_count = {rating_count}")
+        strategy = "hybrid"
+        reason_template = "당신의 평점 패턴 기반 개인화 추천"
         rated_movie_ids = [r.movie_id for r in user_ratings]
         candidate_movie_ids = [mid for mid in all_movie_ids if mid not in rated_movie_ids]
         
@@ -200,10 +212,29 @@ async def get_my_recommendations(
             user_id,
             candidate_movie_ids,
             cf_scores,
-            top_k,
+            top_k * 2,
             ncf_weight=0.7
             
         )
+        
+    if apply_mmr and len(recommendations) > top_k:
+        # 장르 정보를 추가
+        movie_ids_for_genres = [r["movie_id"] for r in recommendations]
+        result = await db.execute(
+            select(Movie.id, Movie.genres)
+            .where(Movie.id.in_(movie_ids_for_genres))
+        )
+        genres_map = {movie_id: genres for movie_id, genres in result.fetchall()}
+        
+        # recommendations에 장르 추가
+        
+        for rec_item in recommendations:
+            rec_item["genres"] = genres_map.get(rec_item["movie_id"],"")
+            
+        # MMR 적용
+        recommendations = rec.apply_mmr_diversity(recommendations, top_k, lambda_param=0.7)
+    else :
+        recommendations = recommendations[:top_k]
         
     # 영화 정보 조회
     movie_ids = [r['movie_id'] for r in recommendations]
@@ -223,19 +254,22 @@ async def get_my_recommendations(
                 RecommendationItem(
                     movie_id=movie_id,
                     title=movie.title,
-                    predicted_rating=round(rec_item["predicted_rating"],2)
+                    predicted_rating=round(rec_item["predicted_rating"],2),
+                    reason=reason_template,
+                    genres=movie.genres
                 )
             )
     
     # Res 데이터 생성
     response_data = {
         "user_id": user_id,
+        "strategy": strategy,
         "recommendations": [item.model_dump() for item in response_items]
     }
     
     await redis_client.set_recommendation_cache(user_id, response_data, ttl=3600)
     
-    logger.info(f"추천 완료 및 캐싱 : user_id={user_id}, count={len(response_items)}")
+    logger.info(f"추천 완료 및 캐싱 : user_id={user_id}, count={len(response_items)}, strategy={strategy}")
     
     return RecommendationResponse(**response_data)
 
@@ -280,12 +314,14 @@ async def get_recommendations_by_user_id(
                 RecommendationItem(
                     movie_id=movie.id,
                     title=movie.title,
-                    predicted_rating=round(rec_item['predicted_rating'], 2)
+                    predicted_rating=round(rec_item['predicted_rating'], 2),
+                    genres=movie.genres
                 )
             )
     
     return RecommendationResponse(
         user_id=user_id,
+        strategy="ncf",
         recommendations=response_items
     )
 
