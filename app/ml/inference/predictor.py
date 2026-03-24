@@ -6,7 +6,9 @@ from pathlib import Path
 from app.ml.models.ncf import NCF
 import math # 250321추가
 from collections import Counter # 250321추가
+import logging
 
+logger = logging.getLogger(__name__)
 class MovieRecommender:
     """
     학습된 NCF 모델을 사용한 영화 추천기
@@ -59,15 +61,15 @@ class MovieRecommender:
         
         self._initialized = True
         
-        print(f"✓ 모델 로드 완료")
-        print(f"  - Device: {self.device}")
-        print(f"  - RMSE: {checkpoint['rmse']:.4f}")
-        print(f"  - Users: {self.n_users:,}, Items: {self.n_items:,}")
+        logger.info(f"✓ 모델 로드 완료")
+        logger.info(f"  - Device: {self.device}")
+        logger.info(f"  - RMSE: {checkpoint['rmse']:.4f}")
+        logger.info(f"  - Users: {self.n_users:,}, Items: {self.n_items:,}")
 
         if self.service_user_mapping:
-            print(f"  - Service users: {len(self.service_user_mapping)} (NCF enabled)")
+            logger.info(f"  - Service users: {len(self.service_user_mapping)} (NCF enabled)")
         else:
-            print(f"  - Service users: cold start only (retrain not yet executed)")
+            logger.info(f"  - Service users: cold start only (retrain not yet executed)")
     
     def _resolve_user_idx(self, user_id: int) -> int:
         """
