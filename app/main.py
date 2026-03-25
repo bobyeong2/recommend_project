@@ -10,6 +10,8 @@ from app.ml.inference.predictor import MovieRecommender
 from app.core.redis_client import redis_client
 from app.middleware.request_logging import RequestLoggingMiddleware  #260324 추가
 
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST #260325 추가
+from starlette.responses import Response
 setup_logging(log_level="DEBUG" if settings.DEBUG else "INFO")
 logger = logging.getLogger(__name__)
 
@@ -106,3 +108,9 @@ async def health_check():
         "redis": "connected" if redis_connected else "disconnected"
     }
     
+@app.get("/metrics")
+async def prometheus_metrics():
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST
+    )

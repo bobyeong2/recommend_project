@@ -12,7 +12,7 @@ from app.api.dependencies import get_current_user
 from app.core.redis_client import redis_client # 260320 추가
 from app.services.movie_stats_updater import run_update_movie_stats #260323추가
 import logging # 260320 추가
-
+from app.core.metrics import metrics
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -75,6 +75,8 @@ async def create_rating(
     # 평점 등록 후 캐시 무효화
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f" 캐시 무효화: user_id={current_user.id}")
+    
+    metrics.rating_operations.labels(operation="create").inc()
     
     # movie_stats 갱신 (BackgroundTask)
     background_tasks.add_task(run_update_movie_stats, rating_data.movie_id)
@@ -184,6 +186,8 @@ async def update_rating(
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
     
+    metrics.rating_operations.labels(operation="update").inc()
+    
     # movie_stats 갱신(BackgroundTask)
     background_tasks.add_task(run_update_movie_stats, movie_id)
     
@@ -225,6 +229,7 @@ async def delete_rating(
     await redis_client.invalidate_user_cache(current_user.id)
     logger.info(f"🗑️ 캐시 무효화: user_id={current_user.id}")
     
+    metrics.rating_operations.labels(operation="delete").inc()
     # movie_stats 갱신(BackgroundTask)
     background_tasks.add_task(run_update_movie_stats, movie_id)
     
