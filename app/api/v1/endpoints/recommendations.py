@@ -4,6 +4,8 @@ from sqlalchemy import select, func #260322추가
 from typing import List, Dict #260322추가
 
 from app.core.database import get_db
+from app.core.metrics import metrics # 260325 추가
+
 from app.models.movie import Movie
 from app.models.user_rating import UserRating # 260320추가
 # from app.models.training import TrainingRating #260322추가
@@ -21,6 +23,9 @@ from app.schemas.recommendation import (
 from app.api.dependencies import get_current_user # 260320추가
 from app.core.redis_client import redis_client # 260320추가
 import logging # 260320추가
+import time
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +162,7 @@ async def get_my_recommendations(
         return RecommendationResponse(**cached_data)
     
     logger.info(f" 새로운 추천 생성 중 : user_id={user_id}")
+    start_time = time.perf_counter()
     
     # 사용자 평점 개수 확인
     result = await db.execute(
@@ -269,6 +275,10 @@ async def get_my_recommendations(
     
     await redis_client.set_recommendation_cache(user_id, response_data, ttl=3600)
     
+    elapsed = time.perf_counter() - start_time
+    metrics.recommendation_latency.labels(strategy=strategy).observe(elapsed)
+    metrics.recommendation_requests.labels(strategy=strategy).inc()
+    logger.info(f"추천 생성 소요 시간: {elapsed * 1000: .1f}ms, strategy={strategy}")
     logger.info(f"추천 완료 및 캐싱 : user_id={user_id}, count={len(response_items)}, strategy={strategy}")
     
     return RecommendationResponse(**response_data)

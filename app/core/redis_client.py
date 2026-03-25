@@ -5,6 +5,8 @@ from typing import Optional
 import json
 import logging
 import time
+from app.core.metrics import metrics # 260325 추가
+
 logger = logging.getLogger(__name__)
 
 class RedisClient:
@@ -61,8 +63,10 @@ class RedisClient:
             
             if data:
                 logger.info(f"캐싱 히트 : user_id = {user_id}")
+                metrics.cache_hits.inc()
                 return json.loads(data)
             logger.info(f"캐싱 미스 : user_id={user_id}")
+            metrics.cache_misses.inc()
             return None
         except Exception as e :
             logger.error(f"캐싱 조회 오류 : {e}")
