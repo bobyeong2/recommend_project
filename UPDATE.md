@@ -71,7 +71,7 @@ Bob Movie Recommendation 프로젝트의 업데이트 내역입니다.
   - 전략별 추천 근거 메시지 제공
     - popular: "많은 사용자가 높게 평가한 인기 영화"
     - content_based: "좋아하신 영화와 유사한 장르"
-    - hybrid: "당신의 평점 패턴 기반 개인화 추천"
+    - hybrid: "개인의 평점 패턴 기반 개인화 추천"
   
 - **API 스키마 확장**
   - `RecommendationResponse`: `strategy` 필드 추가
