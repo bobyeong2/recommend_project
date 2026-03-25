@@ -41,6 +41,7 @@ pytest = "*"
 httpx = "*"
 pytest-asyncio = "*"
 redis = "*"
+prometheus-client = "*"
 
 [dev-packages]
 

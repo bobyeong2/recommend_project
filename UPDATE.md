@@ -3,6 +3,60 @@
 Bob Movie Recommendation 프로젝트의 업데이트 내역입니다.
 ---
 
+## v2.3.0 (2026-03-25)
+
+### ✨ 새로운 기능
+
+#### 1. 구조화된 로깅 및 요청 모니터링 (#29)
+- **중앙 로깅 시스템 구축**
+  - 콘솔: 가독성 텍스트 포맷
+  - 파일: JSON 구조화 포맷 (`logs/app.log`, `logs/error.log`)
+  - 로그 로테이션 (10MB, 5개 보관)
+  - SQLAlchemy verbose 쿼리 로그 억제
+- **요청/응답 자동 로깅 미들웨어**
+  - 모든 API 호출의 메서드, 경로, 상태코드, 응답시간 자동 기록
+  - 1초 이상 소요 요청 SLOW WARNING 자동 감지
+  - health check 경로 자동 스킵
+
+**신규 파일:**
+- `app/core/logging_config.py`
+- `app/middleware/request_logging.py`
+- `app/middleware/__init__.py`
+
+**변경된 파일:**
+- `app/main.py` (print → logger, 미들웨어 등록)
+- `app/ml/inference/predictor.py` (print → logger)
+
+#### 2. Prometheus 메트릭 및 Grafana 모니터링 대시보드 (#31)
+- **Prometheus 메트릭 엔드포인트** (`/metrics`)
+  - 추천 전략별 요청 카운터 + latency 히스토그램
+  - Redis 캐시 히트/미스 카운터
+  - 평점 CRUD 오퍼레이션 카운터
+  - NCF 모델 추론 latency 히스토그램
+- **Grafana 대시보드 자동 provisioning**
+  - 추천 API 요청 수 (전략별)
+  - 추천 생성 응답 시간 (p50/p95/p99)
+  - Redis 캐시 히트율 게이지
+  - 평점 CRUD 오퍼레이션 현황
+- **Docker Compose 모니터링 스택 추가**
+  - Prometheus (포트 9090)
+  - Grafana (포트 3000, admin/bobgrafana)
+
+**신규 파일:**
+- `app/core/metrics.py`
+- `monitoring/prometheus.yml`
+- `monitoring/grafana/provisioning/datasources/datasources.yml`
+- `monitoring/grafana/provisioning/dashboards/dashboards_provision.yml`
+- `monitoring/grafana/dashboards/bob_dashboard.json`
+
+**변경된 파일:**
+- `app/main.py` (`/metrics` 엔드포인트)
+- `app/core/redis_client.py` (캐시 카운터)
+- `app/api/v1/endpoints/recommendations.py` (전략 카운터, latency)
+- `app/api/v1/endpoints/ratings.py` (CRUD 카운터)
+- `docker-compose.yml` (prometheus, grafana 서비스 추가)
+- `requirements.txt` (prometheus-client)
+
 ## v2.2.0 (2026-03-24)
 
 ### ✨ 새로운 기능

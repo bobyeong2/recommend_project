@@ -204,7 +204,7 @@ pytest tests/ -v
 
 ## 📋 업데이트 내역
 
-최신 업데이트 내역은 [UPDATES.md](./UPDATE.md)를 참고하세요.
+최신 업데이트 내역은 [UPDATE.md](./UPDATE.md)를 참고하세요.
 
 **Current Version**: v2.2.0
 
