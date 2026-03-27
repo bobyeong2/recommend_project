@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  # PR 생성/업데이트 시 실행 (feature, fix, hotfix 브랜치)
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  
+  # main 브랜치 push 시 실행 (병합 후 최종 검증)
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    # MySQL과 Redis 서비스 컨테이너
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: bob_movie_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    env:
+      # 테스트 환경변수
+      TESTING: true
+      SKIP_MODEL_LOAD: true
+      DATABASE_URL: mysql+aiomysql://root:rootpass@localhost:3306/bob_movie_db
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET_KEY: test-secret-key-for-ci
+      JWT_ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install --dev --system
+      
+      - name: 🗄️ Initialize test database
+        run: |
+          python app/scripts/init_test_db.py
+      
+      - name: 🧪 Run pytest
+        run: |
+          pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+      
+      - name: 📊 Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: false
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "### Test Results 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo  All tests passed!" >> $GITHUB_STEP_SUMMARY

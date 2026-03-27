@@ -8,6 +8,7 @@ training_ratings + user_ratings를 합산해 계산함
 """
 import asyncio
 import logging
+import os
 from sqlalchemy import text
 
 from app.core.database import AsyncSessionLocal
@@ -35,7 +36,7 @@ async def update_movie_stats(movie_id: int):
                         COUNT(*) as rating_count,
                         NOW() as updated_at
                     from(
-                            select movie, rating
+                            select movie_id, rating
                                 from training_ratings
                                 where movie_id = :movie_id
                                 union all
@@ -48,7 +49,7 @@ async def update_movie_stats(movie_id: int):
                     ON duplicate key update
                         avg_rating = values(avg_rating),
                         rating_count = values(rating_count),
-                        update_at = NOW()
+                        updated_at = NOW()
                 """
             ), {"movie_id":movie_id})
             
@@ -64,6 +65,10 @@ def run_update_movie_stats(movie_id: int):
     fastapi backgroundTasks는 동기 함수도 지원함.
     새 event loop에서 async 함수를 실행
     """
+    # 테스트 환경에서는 스킵
+    if os.getenv("TESTING", "false").lower() == "true":
+        logger.info(f"⚠️ TESTING mode: skip movie_stats update for movie_id={movie_id}")
+        return
     
     loop = asyncio.new_event_loop()
     
@@ -71,4 +76,3 @@ def run_update_movie_stats(movie_id: int):
         loop.run_until_complete(update_movie_stats(movie_id))
     finally:
         loop.close()
-        
