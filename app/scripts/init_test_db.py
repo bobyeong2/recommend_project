@@ -16,7 +16,7 @@ async def init_test_database():
         await conn.execute(text("CREATE DATABASE IF NOT EXISTS bob_movie_db_test"))
         await conn.execute(text("USE bob_movie_db_test"))
         
-        # movies 테이블 생성
+        # movies 테이블
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS movies (
                 id INT PRIMARY KEY,
@@ -34,7 +34,44 @@ async def init_test_database():
             )
         """))
         
-        # movie_stats 테이블 생성
+        # users 테이블
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                hashed_password VARCHAR(255) NOT NULL,
+                full_name VARCHAR(100),
+                is_active BOOLEAN DEFAULT TRUE,
+                is_verified BOOLEAN DEFAULT FALSE,
+                role VARCHAR(20) DEFAULT 'user',
+                created_at DATE NOT NULL,
+                updated_at DATE NOT NULL,
+                last_login_at DATETIME,
+                INDEX idx_email (email),
+                INDEX idx_username (username)
+            )
+        """))
+        
+        # user_ratings 테이블
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS user_ratings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                movie_id INT NOT NULL,
+                rating DECIMAL(3,1) NOT NULL,
+                source VARCHAR(50) DEFAULT 'user',
+                created_at DATE NOT NULL,
+                updated_at DATE NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_user_movie (user_id, movie_id),
+                INDEX idx_user_id (user_id),
+                INDEX idx_movie_id (movie_id)
+            )
+        """))
+        
+        # movie_stats 테이블
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS movie_stats (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -48,7 +85,7 @@ async def init_test_database():
             )
         """))
         
-        # 더미 영화 데이터 삽입 (20개)
+        # 더미 영화 데이터
         dummy_movies = [
             (1, "영화1", "드라마|로맨스", 2020, "감독1", "배우1", "줄거리1", None, None, None),
             (2, "영화2", "액션|스릴러", 2021, "감독2", "배우2", "줄거리2", None, None, None),
@@ -98,7 +135,7 @@ async def init_test_database():
             (19, 8.1, 94), (20, 7.7, 78)
         """))
         
-        print("테스트 DB 초기화 완료 (20개 영화 데이터)")
+        print("테스트 DB 초기화 완료 (20개 영화, users/user_ratings 테이블)")
 
 async def main():
     try:
