@@ -1,12 +1,10 @@
 name: CI
 
 on:
-  # PR 생성/업데이트 시 실행 (feature, fix, hotfix 브랜치)
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
   
-  # main 브랜치 push 시 실행 (병합 후 최종 검증)
   push:
     branches: [main]
 
@@ -14,7 +12,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    # MySQL과 Redis 서비스 컨테이너
     services:
       mysql:
         image: mysql:8.0
@@ -40,7 +37,6 @@ jobs:
           --health-retries=3
     
     env:
-      # 테스트 환경변수
       TESTING: true
       SKIP_MODEL_LOAD: true
       DATABASE_URL: mysql+aiomysql://root:rootpass@localhost:3306/bob_movie_db
@@ -51,34 +47,35 @@ jobs:
       REFRESH_TOKEN_EXPIRE_DAYS: 7
     
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: 🐍 Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pipenv
           pipenv install --dev --system
       
-      - name: 🗄️ Initialize test database
+      - name: Initialize test database
         run: |
           python app/scripts/init_test_db.py
       
-      - name: 🧪 Run pytest
+      - name: Run pytest
         run: |
-          pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+          pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=xml
       
-      - name: 📊 Upload coverage reports
+      - name: Upload coverage reports
         if: always()
         uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unittests
           name: codecov-umbrella
@@ -86,6 +83,6 @@ jobs:
       - name: Test summary
         if: always()
         run: |
-          echo "### Test Results 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo  All tests passed!" >> $GITHUB_STEP_SUMMARY
+          echo "All tests passed" >> $GITHUB_STEP_SUMMARY
