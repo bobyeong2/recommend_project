@@ -1,9 +1,7 @@
-import torch
+
 import numpy as np
 from typing import List, Dict
 from pathlib import Path
-
-from app.ml.models.ncf import NCF
 import math # 250321추가
 from collections import Counter # 250321추가
 import logging
@@ -39,9 +37,8 @@ class MovieRecommender:
             
             return
         
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-        
+        import torch
+        from app.ml.models.ncf import NCF
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         # 모델 로드
