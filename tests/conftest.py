@@ -23,6 +23,11 @@ def set_rating_timestamps(mapper, connection, target):
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def cleanup_engine():
-    """각 테스트 후 DB engine dispose"""
+    """각 테스트 후 싱글톤 리셋 및 DB engine dispose"""
+    from app.ml.inference.predictor import MovieRecommender
+    MovieRecommender._instance = None
+    MovieRecommender._initialized = False
+    
     yield
+    
     await engine.dispose()
