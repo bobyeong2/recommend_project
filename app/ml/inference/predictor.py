@@ -1,4 +1,4 @@
-import torch
+
 import numpy as np
 from typing import List, Dict
 from pathlib import Path
@@ -23,6 +23,9 @@ class MovieRecommender:
         return cls._instance
     
     def __init__(self, model_path: str = "models/best_ncf_model.pth"):
+        
+        import torch
+        
         if self._initialized:
             return
             
