@@ -19,7 +19,7 @@ class Movie(Base):
     overview = Column(Text)  # 줄거리 (긴 텍스트)
     
     # 메타데이터
-    genres = Column(JSON)  # ["액션", "SF"] - JSON 배열로 저장
+    genres = Column(String(255))  # 파이프 구분 문자열: "액션|드라마"
     runtime = Column(Integer)  # 상영시간 (분)
     release_date = Column(Date)  # 개봉일
     

@@ -42,6 +42,7 @@ httpx = "*"
 pytest-asyncio = "*"
 redis = "*"
 prometheus-client = "*"
+pytest-cov = "*"
 
 [dev-packages]
 

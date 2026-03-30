@@ -1,4 +1,4 @@
-from pydantic import BaseModel,field_validator
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date
 import ast
@@ -7,7 +7,7 @@ class MovieBase(BaseModel):
     title: str
     original_title: Optional[str] = None
     overview: Optional[str] = None
-    genres: Optional[List[str]] = None
+    genres: Optional[List[str]] = None  # API 응답은 List[str] 유지
     runtime: Optional[int] = None
     release_date: Optional[date] = None
     poster_path: Optional[str] = None
@@ -22,11 +22,14 @@ class MovieBase(BaseModel):
         if isinstance(v, list):
             return v
         if isinstance(v, str):
+            # 파이프 구분 문자열 처리 (신규 형식)
+            if '|' in v:
+                return [g.strip() for g in v.split('|') if g.strip()]
+            # 기존 형식 호환 (마이그레이션 중)
             try:
-                # "['액션', '모험']" 형태를 파싱
                 return ast.literal_eval(v)
             except:
-                return None
+                return [v] if v else None
         return v
     
     class Config:
@@ -45,4 +48,3 @@ class MovieDetail(MovieResponse):
     
     class Config:
         from_attributes = True
-        
