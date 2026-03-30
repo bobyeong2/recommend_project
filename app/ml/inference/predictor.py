@@ -1,12 +1,11 @@
-import torch
+
 import numpy as np
 from typing import List, Dict
 from pathlib import Path
-
-from app.ml.models.ncf import NCF
 import math # 250321추가
 from collections import Counter # 250321추가
 import logging
+import os # 260327추가 
 
 logger = logging.getLogger(__name__)
 class MovieRecommender:
@@ -25,7 +24,21 @@ class MovieRecommender:
     def __init__(self, model_path: str = "models/best_ncf_model.pth"):
         if self._initialized:
             return
+            
+        # CI 환경에서 모델 로드 스킵
         
+        if os.getenv("SKIP_MODEL_LOAD") == "true":
+            self._initialized = True
+            self.service_user_mapping = {}
+            self.user_mapping = {}
+            self.item_mapping = {}
+            
+            logger.info("SKIP_MODEL_LOAD=true, 모델 로드 생략")
+            
+            return
+        
+        import torch
+        from app.ml.models.ncf import NCF
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         # 모델 로드
@@ -96,7 +109,8 @@ class MovieRecommender:
         - Item 없음 → 전역 평균 반환
         - 둘 다 있음 → NCF 예측
         """
-        
+        if os.getenv("SKIP_MODEL_LOAD") == "true":
+            return {mid: 8.0 for mid in movie_ids}  # 모두 8점으로
         predictions = {}
         # user index 조회
         user_idx = self._resolve_user_idx(user_id)
