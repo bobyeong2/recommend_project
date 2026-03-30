@@ -194,12 +194,16 @@ class MovieRecommender:
         
     def recommend_content_based(self, user_rated_movies: List[Dict], candidate_movies: List[Dict], top_k: int = 10) -> List[Dict]:
         genre_preferences = Counter()
-        
+                
         for movie in user_rated_movies:
             rating = movie["rating"]
+            genres = movie.get("genres", "")
+
             if isinstance(genres, str):
                 genres = genres.split("|")
-            
+            else:
+                genres = []
+
             if rating >= 7.0:
                 weight = rating / 10.0
                 for genre in genres:
@@ -210,16 +214,24 @@ class MovieRecommender:
         
         for movie in candidate_movies:
             movie_id = movie["movie_id"]
+            genres = movie.get("genres", "")
+
             if isinstance(genres, str):
                 genres = genres.split("|")
+            else:
+                genres = []
 
             if genres:
                 raw_similarity = sum(genre_preferences.get(genre, 0) for genre in genres) / len(genres)
                 similarity_score = min(raw_similarity / max_preference, 1.0) if max_preference > 0 else 0
-                
+
                 if similarity_score > 0:
                     predicted_rating = 7.0 + (similarity_score * 3.0)
-                    scored_movies.append({"movie_id": movie_id, "predicted_rating": predicted_rating, "similarity_score": similarity_score})
+                    scored_movies.append({
+                        "movie_id": movie_id,
+                        "predicted_rating": predicted_rating,
+                        "similarity_score": similarity_score
+                    })
                     
         sorted_movies = sorted(scored_movies, key=lambda x: x["similarity_score"], reverse=True)[:top_k]
         return [{"movie_id": m["movie_id"], "predicted_rating": m["predicted_rating"]} for m in sorted_movies]
