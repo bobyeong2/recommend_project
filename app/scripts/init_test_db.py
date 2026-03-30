@@ -1,25 +1,30 @@
-import sys
 import os
+import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 import asyncio
 from sqlalchemy import text
-from app.core.database import engine
+from app.core.database import async_engine
+import json
 
-async def init_db():
-    async with engine.begin() as conn:
-        # movies 테이블
+async def init_test_db():
+    async with async_engine.begin() as conn:
+        await conn.execute(text("DROP TABLE IF EXISTS user_ratings"))
+        await conn.execute(text("DROP TABLE IF EXISTS movie_stats"))
+        await conn.execute(text("DROP TABLE IF EXISTS users"))
+        await conn.execute(text("DROP TABLE IF EXISTS movies"))
+        
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS movies (
+            CREATE TABLE movies (
                 id INT PRIMARY KEY,
                 movie_code VARCHAR(50),
-                title VARCHAR(200),
-                original_title VARCHAR(200),
+                title VARCHAR(255),
+                original_title VARCHAR(255),
                 overview TEXT,
-                genres VARCHAR(200),
+                genres JSON,
                 runtime INT,
                 release_date DATE,
-                poster_path VARCHAR(200),
+                poster_path VARCHAR(255),
                 mean_rating FLOAT,
                 popularity FLOAT,
                 created_at DATE,
@@ -27,82 +32,92 @@ async def init_db():
             )
         """))
         
-        # 테스트 데이터 (genres를 string으로)
         await conn.execute(text("""
-            INSERT INTO movies (id, title, genres, mean_rating, popularity, created_at, updated_at) VALUES
-            (1, '다크 나이트', '액션|범죄|드라마', 8.5, 100.0, CURDATE(), CURDATE()),
-            (2, '인셉션', '액션|SF|스릴러', 8.8, 95.0, CURDATE(), CURDATE()),
-            (3, '인터스텔라', 'SF|드라마|모험', 8.6, 90.0, CURDATE(), CURDATE()),
-            (4, '펄프 픽션', '범죄|드라마', 8.9, 85.0, CURDATE(), CURDATE()),
-            (5, '포레스트 검프', '드라마|로맨스', 8.8, 80.0, CURDATE(), CURDATE()),
-            (6, '매트릭스', '액션|SF', 8.7, 88.0, CURDATE(), CURDATE()),
-            (7, '쇼생크 탈출', '드라마', 9.3, 92.0, CURDATE(), CURDATE()),
-            (8, '반지의 제왕', '판타지|모험|드라마', 8.9, 87.0, CURDATE(), CURDATE()),
-            (9, '타이타닉', '드라마|로맨스', 7.8, 83.0, CURDATE(), CURDATE()),
-            (10, '아바타', 'SF|액션|모험', 7.8, 89.0, CURDATE(), CURDATE()),
-            (11, '어벤져스', '액션|SF|모험', 8.0, 91.0, CURDATE(), CURDATE()),
-            (12, '글래디에이터', '액션|드라마|역사', 8.5, 84.0, CURDATE(), CURDATE()),
-            (13, '라이언 일병 구하기', '드라마|전쟁', 8.6, 82.0, CURDATE(), CURDATE()),
-            (14, '센과 치히로의 행방불명', '애니메이션|판타지|모험', 8.6, 81.0, CURDATE(), CURDATE()),
-            (15, '기생충', '드라마|스릴러|코미디', 8.6, 93.0, CURDATE(), CURDATE()),
-            (16, '조커', '범죄|드라마|스릴러', 8.4, 94.0, CURDATE(), CURDATE()),
-            (17, '겨울왕국', '애니메이션|모험|코미디', 7.4, 86.0, CURDATE(), CURDATE()),
-            (18, '스파이더맨', '액션|SF|모험', 7.3, 85.0, CURDATE(), CURDATE()),
-            (19, '헝거게임', 'SF|액션|스릴러', 7.2, 79.0, CURDATE(), CURDATE()),
-            (20, '트와일라잇', '판타지|드라마|로맨스', 5.2, 78.0, CURDATE(), CURDATE())
-        """))
-        
-        # movie_stats
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS movie_stats (
+            CREATE TABLE movie_stats (
                 movie_id INT PRIMARY KEY,
                 avg_rating FLOAT,
                 rating_count INT,
-                updated_at DATETIME
+                updated_at DATETIME,
+                FOREIGN KEY (movie_id) REFERENCES movies(id)
             )
         """))
         
         await conn.execute(text("""
-            INSERT INTO movie_stats (movie_id, avg_rating, rating_count, updated_at) VALUES
-            (1, 8.5, 1500, NOW()), (2, 8.8, 1300, NOW()), (3, 8.6, 1200, NOW()),
-            (4, 8.9, 1100, NOW()), (5, 8.8, 1000, NOW()), (6, 8.7, 950, NOW()),
-            (7, 9.3, 1800, NOW()), (8, 8.9, 1400, NOW()), (9, 7.8, 900, NOW()),
-            (10, 7.8, 850, NOW()), (11, 8.0, 1600, NOW()), (12, 8.5, 800, NOW()),
-            (13, 8.6, 750, NOW()), (14, 8.6, 700, NOW()), (15, 8.6, 1700, NOW()),
-            (16, 8.4, 1550, NOW()), (17, 7.4, 650, NOW()), (18, 7.3, 600, NOW()),
-            (19, 7.2, 550, NOW()), (20, 5.2, 500, NOW())
-        """))
-        
-        # users
-        await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                username VARCHAR(50),
-                email VARCHAR(100),
-                hashed_password VARCHAR(200),
+            CREATE TABLE users (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                username VARCHAR(50) UNIQUE,
+                email VARCHAR(100) UNIQUE,
+                hashed_password VARCHAR(255),
                 full_name VARCHAR(100),
-                is_active TINYINT(1),
-                is_verified TINYINT(1),
-                role VARCHAR(20),
+                is_active BOOLEAN DEFAULT TRUE,
+                is_verified BOOLEAN DEFAULT FALSE,
+                role VARCHAR(20) DEFAULT 'user',
                 created_at DATE,
                 updated_at DATE,
                 last_login_at DATE
             )
         """))
         
-        # user_ratings
         await conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS user_ratings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+            CREATE TABLE user_ratings (
+                id INT PRIMARY KEY AUTO_INCREMENT,
                 user_id INT,
                 movie_id INT,
                 rating FLOAT,
                 created_at DATE,
-                updated_at DATE
+                updated_at DATE,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (movie_id) REFERENCES movies(id)
             )
         """))
+        
+        movies_data = [
+            (1, 'M001', '테스트 영화 1', 'Test Movie 1', '첫 번째 테스트 영화', json.dumps(['액션', '드라마']), 120, '2020-01-01', '/poster1.jpg', 7.5, 100.0),
+            (2, 'M002', '테스트 영화 2', 'Test Movie 2', '두 번째 테스트 영화', json.dumps(['코미디']), 90, '2020-02-01', '/poster2.jpg', 6.8, 80.0),
+            (3, 'M003', '테스트 영화 3', 'Test Movie 3', '세 번째 테스트 영화', json.dumps(['스릴러', '미스터리']), 110, '2020-03-01', '/poster3.jpg', 8.0, 120.0),
+            (4, 'M004', '테스트 영화 4', 'Test Movie 4', '네 번째 테스트 영화', json.dumps(['로맨스']), 95, '2020-04-01', '/poster4.jpg', 7.2, 90.0),
+            (5, 'M005', '테스트 영화 5', 'Test Movie 5', '다섯 번째 테스트 영화', json.dumps(['SF', '액션']), 130, '2020-05-01', '/poster5.jpg', 8.5, 150.0),
+            (6, 'M006', '테스트 영화 6', 'Test Movie 6', '여섯 번째 테스트 영화', json.dumps(['드라마']), 105, '2020-06-01', '/poster6.jpg', 7.8, 110.0),
+            (7, 'M007', '테스트 영화 7', 'Test Movie 7', '일곱 번째 테스트 영화', json.dumps(['액션', '코미디']), 100, '2020-07-01', '/poster7.jpg', 7.0, 95.0),
+            (8, 'M008', '테스트 영화 8', 'Test Movie 8', '여덟 번째 테스트 영화', json.dumps(['공포']), 85, '2020-08-01', '/poster8.jpg', 6.5, 75.0),
+            (9, 'M009', '테스트 영화 9', 'Test Movie 9', '아홉 번째 테스트 영화', json.dumps(['다큐멘터리']), 120, '2020-09-01', '/poster9.jpg', 8.2, 130.0),
+            (10, 'M010', '테스트 영화 10', 'Test Movie 10', '열 번째 테스트 영화', json.dumps(['애니메이션']), 95, '2020-10-01', '/poster10.jpg', 7.9, 115.0),
+            (11, 'M011', '테스트 영화 11', 'Test Movie 11', '11번 영화', json.dumps(['액션']), 100, '2020-11-01', '/poster11.jpg', 7.3, 100.0),
+            (12, 'M012', '테스트 영화 12', 'Test Movie 12', '12번 영화', json.dumps(['드라마']), 110, '2020-12-01', '/poster12.jpg', 7.6, 105.0),
+            (13, 'M013', '테스트 영화 13', 'Test Movie 13', '13번 영화', json.dumps(['코미디']), 90, '2021-01-01', '/poster13.jpg', 7.1, 85.0),
+            (14, 'M014', '테스트 영화 14', 'Test Movie 14', '14번 영화', json.dumps(['스릴러']), 115, '2021-02-01', '/poster14.jpg', 7.7, 110.0),
+            (15, 'M015', '테스트 영화 15', 'Test Movie 15', '15번 영화', json.dumps(['로맨스']), 95, '2021-03-01', '/poster15.jpg', 7.4, 90.0),
+            (16, 'M016', '테스트 영화 16', 'Test Movie 16', '16번 영화', json.dumps(['SF']), 120, '2021-04-01', '/poster16.jpg', 8.0, 125.0),
+            (17, 'M017', '테스트 영화 17', 'Test Movie 17', '17번 영화', json.dumps(['액션', '드라마']), 105, '2021-05-01', '/poster17.jpg', 7.5, 95.0),
+            (18, 'M018', '테스트 영화 18', 'Test Movie 18', '18번 영화', json.dumps(['코미디']), 88, '2021-06-01', '/poster18.jpg', 6.9, 80.0),
+            (19, 'M019', '테스트 영화 19', 'Test Movie 19', '19번 영화', json.dumps(['공포']), 92, '2021-07-01', '/poster19.jpg', 7.2, 88.0),
+            (20, 'M020', '테스트 영화 20', 'Test Movie 20', '20번 영화', json.dumps(['드라마']), 108, '2021-08-01', '/poster20.jpg', 7.8, 112.0),
+        ]
+        
+        for movie in movies_data:
+            await conn.execute(text("""
+                INSERT INTO movies (id, movie_code, title, original_title, overview, genres, runtime, release_date, poster_path, mean_rating, popularity, created_at, updated_at)
+                VALUES (:id, :code, :title, :orig, :overview, :genres, :runtime, :release, :poster, :rating, :pop, CURDATE(), CURDATE())
+            """), {
+                'id': movie[0], 'code': movie[1], 'title': movie[2], 'orig': movie[3],
+                'overview': movie[4], 'genres': movie[5], 'runtime': movie[6],
+                'release': movie[7], 'poster': movie[8], 'rating': movie[9], 'pop': movie[10]
+            })
+        
+        stats_data = [
+            (1, 7.5, 100), (2, 6.8, 80), (3, 8.0, 120), (4, 7.2, 90), (5, 8.5, 150),
+            (6, 7.8, 110), (7, 7.0, 95), (8, 6.5, 75), (9, 8.2, 130), (10, 7.9, 115),
+            (11, 7.3, 100), (12, 7.6, 105), (13, 7.1, 85), (14, 7.7, 110), (15, 7.4, 90),
+            (16, 8.0, 125), (17, 7.5, 95), (18, 6.9, 80), (19, 7.2, 88), (20, 7.8, 112),
+        ]
+        
+        for stat in stats_data:
+            await conn.execute(text("""
+                INSERT INTO movie_stats (movie_id, avg_rating, rating_count, updated_at)
+                VALUES (:movie_id, :avg, :count, NOW())
+            """), {'movie_id': stat[0], 'avg': stat[1], 'count': stat[2]})
     
-    print("✓ Test DB initialized")
+    print("Test DB initialized successfully")
 
 if __name__ == "__main__":
-    asyncio.run(init_db())
+    asyncio.run(init_test_db())

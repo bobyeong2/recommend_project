@@ -34,7 +34,7 @@ class MovieRecommender:
             logger.info("SKIP_MODEL_LOAD=true, 모델 로드 생략")
             return
         
-        # torch와 NCF는 여기서만 import
+        # torch와 NCF lazy import
         import torch
         from app.ml.models.ncf import NCF
         
