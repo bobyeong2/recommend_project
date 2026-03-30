@@ -14,14 +14,17 @@ async def init_test_db():
         await conn.execute(text("DROP TABLE IF EXISTS users"))
         await conn.execute(text("DROP TABLE IF EXISTS movies"))
         
-        await conn.execute(text("""
+        await conn.execute(text(
+            # genres 만 Json에서 varchar로 변경
+            # CI 환경에서 데이터 입력 오류 발생
+            """
             CREATE TABLE movies (
                 id INT PRIMARY KEY,
                 movie_code VARCHAR(50),
                 title VARCHAR(255),
                 original_title VARCHAR(255),
                 overview TEXT,
-                genres JSON,
+                genres VARCHAR(255),
                 runtime INT,
                 release_date DATE,
                 poster_path VARCHAR(255),
