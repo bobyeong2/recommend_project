@@ -4,6 +4,30 @@ from sqlalchemy import Column, Integer, String, Text, Date, Float, JSON
 from sqlalchemy.sql import func
 from app.core.database import Base
 
+import json
+from sqlalchemy.types import TypeDecorator, JSON
+
+class SafeJSON(TypeDecorator):
+    impl = JSON
+
+    def process_bind_param(self, value, dialect):
+        # DB에 넣을 때
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return [value]
+        return value
+
+    def process_result_value(self, value, dialect):
+        # DB에서 읽을 때
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return [value]
+        return value
+    
 class Movie(Base):
     __tablename__ = "movies"
     
@@ -19,7 +43,7 @@ class Movie(Base):
     overview = Column(Text)  # 줄거리 (긴 텍스트)
     
     # 메타데이터
-    genres = Column(JSON)  # ["액션", "SF"] - JSON 배열로 저장
+    genres = Column(SafeJSON)  # ["액션", "SF"] - JSON 배열로 저장 -> safejson으로 변환
     runtime = Column(Integer)  # 상영시간 (분)
     release_date = Column(Date)  # 개봉일
     
