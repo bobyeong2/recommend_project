@@ -85,6 +85,7 @@ class MovieRecommender:
     def predict(self, user_id: int, movie_ids: List[int]) -> Dict[int, float]:
         # 테스트 환경 or 모델 미존재 → 즉시 fallback
         if os.getenv("SKIP_MODEL_LOAD") == "true" or not hasattr(self, "model"):
+            self.global_mean = 5.0
             return {mid: self.global_mean for mid in movie_ids}
 
         # 여기부터만 torch 사용
