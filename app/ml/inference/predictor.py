@@ -145,7 +145,7 @@ class MovieRecommender:
             if not genres:
                 return set()
             if isinstance(genres, str):
-                return set(genres.split(","))
+                return set(genres.split("|"))
             return set(genres)
         
         def jaccard_similarity(genres1, genres2):
