@@ -1,13 +1,13 @@
-
 import numpy as np
 from typing import List, Dict
 from pathlib import Path
-import math # 250321추가
-from collections import Counter # 250321추가
+import math
+from collections import Counter
 import logging
-import os # 260327추가 
+import os
 
 logger = logging.getLogger(__name__)
+
 class MovieRecommender:
     """
     학습된 NCF 모델을 사용한 영화 추천기
@@ -25,38 +25,29 @@ class MovieRecommender:
         if self._initialized:
             return
             
-        # CI 환경에서 모델 로드 스킵
-        
         if os.getenv("SKIP_MODEL_LOAD") == "true":
             self._initialized = True
             self.service_user_mapping = {}
             self.user_mapping = {}
             self.item_mapping = {}
-            
             logger.info("SKIP_MODEL_LOAD=true, 모델 로드 생략")
-            
             return
         
         import torch
         from app.ml.models.ncf import NCF
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 모델 로드
         checkpoint = torch.load(model_path, map_location=self.device)
         
         self.n_users = checkpoint["n_users"]
         self.n_items = checkpoint["n_items"]
         self.user_mapping = checkpoint["user_mapping"]
         self.item_mapping = checkpoint["item_mapping"]
-        
-        # 서비스 유저 매핑 (retrain 후에만 존재)
         self.service_user_mapping = checkpoint.get("service_user_mapping",{})
         
-        # 역매핑
         self.idx_to_item = {idx: iid for iid, idx in self.item_mapping.items()}
         self.idx_to_user = {idx: uid for uid, idx in self.user_mapping.items()}
         
-        # 모델 초기화
         config = checkpoint["config"]
         self.model = NCF(
             n_users=self.n_users,
@@ -69,9 +60,7 @@ class MovieRecommender:
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
         
-        # Cold Start용 기본값
-        self.global_mean = checkpoint.get('rmse', 5.5)  # 전역 평균 (대략 중간값)
-        
+        self.global_mean = checkpoint.get('rmse', 5.5)
         self._initialized = True
         
         logger.info(f"✓ 모델 로드 완료")
@@ -85,41 +74,22 @@ class MovieRecommender:
             logger.info(f"  - Service users: cold start only (retrain not yet executed)")
     
     def _resolve_user_idx(self, user_id: int) -> int:
-        """
-        user_id를 NCF 내부 인덱스로 변환
-        
-        조회순서
-        1. service_user_mapping(서비스 유저, 재학습 후)
-        2. user_mapping (training data)
-        3. None (cold start)
-        """
         if user_id in self.service_user_mapping:
             return self.service_user_mapping[user_id]
         if user_id in self.user_mapping:
             return self.user_mapping[user_id]
         return None
     
-    
     def predict(self, user_id: int, movie_ids: List[int]) -> Dict[int, float]:
-        """
-        특정 영화들에 대한 평점 예측
-        
-        Cold Start 전략:
-        - User 없음 → 전역 평균 반환
-        - Item 없음 → 전역 평균 반환
-        - 둘 다 있음 → NCF 예측
-        """
         if os.getenv("SKIP_MODEL_LOAD") == "true":
-            return {mid: 8.0 for mid in movie_ids}  # 모두 8점으로
+            return {mid: 8.0 for mid in movie_ids}
+            
         predictions = {}
-        # user index 조회
         user_idx = self._resolve_user_idx(user_id)
         
         if user_idx is None:
-            # 신규 사용자 (재학습에 포함되지 않은 사용자)
             return {mid : self.global_mean for mid in movie_ids}
         
-        # Warm items와 Cold items 분리
         warm_items = []
         cold_items = []
         
@@ -129,14 +99,12 @@ class MovieRecommender:
             else:
                 cold_items.append(movie_id)
         
-        # Cold items → 전역 평균
         for movie_id in cold_items:
             predictions[movie_id] = self.global_mean
         
-        # Warm items → 배치 예측
         if warm_items:
+            import torch
             with torch.no_grad():
-                # 배치로 한 번에 예측
                 movie_ids_batch = [mid for mid, _ in warm_items]
                 item_indices = [idx for _, idx in warm_items]
                 
@@ -144,10 +112,7 @@ class MovieRecommender:
                 user_tensor = torch.LongTensor([user_idx] * batch_size).to(self.device)
                 item_tensor = torch.LongTensor(item_indices).to(self.device)
                 
-                # 한 번에 예측
                 preds = self.model(user_tensor, item_tensor).cpu().numpy()
-                
-                # Clipping
                 preds = np.clip(preds, 1.0, 10.0)
                 
                 for movie_id, pred in zip(movie_ids_batch, preds):
@@ -161,13 +126,8 @@ class MovieRecommender:
         candidate_movie_ids: List[int],
         top_k: int = 10
     ) -> List[Dict]:
-        """
-        상위 K개 영화 추천
-        """
-        
         predictions = self.predict(user_id, candidate_movie_ids)
         
-        # 평점 기준 정렬
         sorted_movies = sorted(
             predictions.items(),
             key=lambda x: x[1],
@@ -179,35 +139,22 @@ class MovieRecommender:
             for movie_id, rating in sorted_movies
         ]
         
-    
     def apply_mmr_diversity(
         self,
         candidates: List[Dict],
         top_k: int = 10,
         lambda_param: float = 0.7
     ) -> List[Dict]:
-        """
-        MMR (Maximal Marginal Relevance)로 다양성을 보정함
-        -> 최대 한계 관련성(Maximum Marginal Relevance, MMR) 검색 방식은 유사성과 다양성의 균형을 맞추어 검색 결과의 품질을 향상시키는 알고리즘
-        
-        Args:
-            candidates: [{"movie_id":int, "predicted_rating": float, "genres":str}, ...]
-            top_k: 최종 선택할 개수
-            lambda_param: 관련성 vs 다양성의 균형 (0 - 1, 높을수록 관련성 우선)
-        
-        Returns:
-            다양성이 보정된 추천 목록
-        """
         if not candidates or len(candidates) <= top_k:
             return candidates[:top_k]
         
-        # 장르 파싱 헬퍼
-        def parse_genres(genres_str):
-            if  not genres_str:
+        def parse_genres(genres_data):
+            if not genres_data:
                 return set()
-            return set(genres_str.split(","))
+            if isinstance(genres_data, list):
+                return set(genres_data)
+            return set(genres_data.split(","))
         
-        # 자카드 유사도 계산
         def jaccard_similarity(genres1, genres2):
             if not genres1 or not genres2:
                 return 0.0
@@ -215,11 +162,9 @@ class MovieRecommender:
             union = len(genres1 | genres2)
             return intersection / union if union > 0 else 0.0
         
-        # 후보들의 장르 파싱
         for cand in candidates:
             cand["_genres_set"] = parse_genres(cand.get("genres",""))
             
-        # 점수 정규화 (0-1)
         scores = [c["predicted_rating"] for c in candidates]
         min_score, max_score = min(scores), max(scores)
         score_range = max_score - min_score if max_score > min_score else 1.0
@@ -227,64 +172,47 @@ class MovieRecommender:
         for cand in candidates:
             cand["_norm_score"] = (cand["predicted_rating"] - min_score) / score_range
     
-        # MMR 선택
         selected = []
         remaining_indices = list(range(len(candidates)))
         
-        # 첫 번째는 최고 점수
         best_idx = max(remaining_indices, key=lambda i: candidates[i]['_norm_score'])
         selected.append(candidates[best_idx])
         remaining_indices.remove(best_idx)
         
-        # 나머지 선택
         while len(selected) < top_k and remaining_indices:
             mmr_scores = []
             
             for idx in remaining_indices:
                 cand = candidates[idx]
-                
-                # Relevance (관련성)
                 relevance = cand['_norm_score']
-                
-                # Max similarity (이미 선택된 것들과의 최대 유사도)
                 max_sim = max(
                     jaccard_similarity(cand['_genres_set'], s['_genres_set'])
                     for s in selected
                 )
-                
-                # MMR 점수
                 mmr = lambda_param * relevance - (1 - lambda_param) * max_sim
                 mmr_scores.append((idx, mmr))
             
-            # 최고 MMR 선택
             best_idx, _ = max(mmr_scores, key=lambda x: x[1])
             selected.append(candidates[best_idx])
             remaining_indices.remove(best_idx)
         
-        # 임시 필드 제거
         for item in selected:
             item.pop('_genres_set', None)
             item.pop('_norm_score', None)
         
         return selected
+        
     def recommend_popular(
         self,
-        movie_stats: List[Dict], # [{"movie_id": int, "avg_rating": float, "rating_count": int}, ...]
+        movie_stats: List[Dict],
         top_k: int = 10
     ) -> List[Dict]:
-        """
-        인기 영화 추천 (신규 사용자)
-        평점 개수 * 평균 평점으로 정렬
-        socre = avg_rating * log(1 +rating_count)
-        """
-        
         scored_movies = []
         for movie in movie_stats:
             movie_id = movie["movie_id"]
             avg_rating = movie["avg_rating"]
             rating_count = movie["rating_count"]
             
-            # 인기 점수 = 평균 평점 * log(1 + 평점 개수)
             popularity_score = avg_rating * math.log(1 + rating_count)
             
             scored_movies.append({
@@ -304,52 +232,46 @@ class MovieRecommender:
             for m in sorted_movies
         ]
         
-    
     def recommend_content_based(
         self,
-        user_rated_movies: List[Dict],  # [{"movie_id": int, "rating": float, "genres": str}, ...]
-        candidate_movies: List[Dict],   # [{"movie_id": int, "genres": str}, ...]
+        user_rated_movies: List[Dict],
+        candidate_movies: List[Dict],
         top_k: int = 10
     ) -> List[Dict]:
-        """
-        CBF 기반 추천 (평점 1 ~ 4개)
-        사용자가 평가한 영화의 장르 기반
-        """
-        # 사용자가 선호하는 장르를 추출함 7점 이상
         genre_preferences = Counter()
         
         for movie in user_rated_movies:
             rating = movie["rating"]
-            genres = movie["genres"].split("|") if movie["genres"] else []
+            if isinstance(movie["genres"], list):
+                genres = movie["genres"]
+            else:
+                genres = movie["genres"].split("|") if movie["genres"] else []
             
             if rating >= 7.0:
                 weight = rating / 10.0
                 for genre in genres:
                     genre_preferences[genre] += weight
                     
-        # 정규화를 하기 위한 최대 선호도
         max_preference = max(genre_preferences.values()) if genre_preferences else 1.0
-        # 후보 영화에 대한 장르 유사도 계산
+        
         scored_movies = []
         for movie in candidate_movies:
             movie_id = movie["movie_id"]
-            # 수정 후
+            
             if isinstance(movie["genres"], list):
                 genres = movie["genres"]
             else:
                 genres = movie["genres"].split("|") if movie["genres"] else []
 
             if genres:
-                # 평균 유사도 
                 raw_similarity = sum(
                     genre_preferences.get(genre, 0) for genre in genres
                 ) / len(genres)
                 
-                # 0 ~ 1 범위로 정규화
                 similarity_score = min(raw_similarity / max_preference, 1.0) if max_preference > 0 else 0
                 
                 if similarity_score > 0:
-                    predicted_rating = 7.0 + (similarity_score * 3.0)  # 7.0~10.0 범위
+                    predicted_rating = 7.0 + (similarity_score * 3.0)
                     scored_movies.append({
                         "movie_id": movie_id,
                         "predicted_rating":predicted_rating,
@@ -375,12 +297,6 @@ class MovieRecommender:
         top_k: int = 10,
         ncf_weight: float = 0.7
     ) -> List[Dict]:
-        """
-        하이브리드 추천 (평점 5개 이상)
-        NCF(70%) + CF(30%)
-        
-        """
-        # NCF를 사용한 예측
         ncf_predictions = self.predict(user_id, candidate_movie_ids)
         
         def normalize(scores: Dict[int,float]) -> Dict[int, float]:
@@ -399,7 +315,6 @@ class MovieRecommender:
         ncf_norm = normalize(ncf_predictions)
         cf_norm = normalize(collaborative_scores)
         
-        # 가중 결합
         cf_weight = 1.0 - ncf_weight
         hybrid_scores = {}
         
@@ -424,8 +339,4 @@ class MovieRecommender:
         
     @classmethod
     def reload(cls):
-        """
-        Model Hot reload (재학습 후 호출)
-        싱글톤 인스턴스를 초기화해서 새로운 모델을 로드
-        """
-        cls._instance = None 
+        cls._instance = None
