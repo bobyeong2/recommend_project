@@ -129,10 +129,12 @@ class MovieRecommender:
         if not candidates or len(candidates) <= top_k:
             return candidates[:top_k]
         
-        def parse_genres(genres_str):
-            if not genres_str:
+        def parse_genres(genres):
+            if not genres:
                 return set()
-            return set(genres_str.split(","))
+            if isinstance(genres, str):
+                return set(genres.split(","))
+            return set(genres)
         
         def jaccard_similarity(genres1, genres2):
             if not genres1 or not genres2:
@@ -195,7 +197,8 @@ class MovieRecommender:
         
         for movie in user_rated_movies:
             rating = movie["rating"]
-            genres = movie["genres"].split("|") if movie["genres"] else []
+            if isinstance(genres, str):
+                genres = genres.split("|")
             
             if rating >= 7.0:
                 weight = rating / 10.0
@@ -207,7 +210,8 @@ class MovieRecommender:
         
         for movie in candidate_movies:
             movie_id = movie["movie_id"]
-            genres = movie["genres"].split("|") if movie["genres"] else []
+            if isinstance(genres, str):
+                genres = genres.split("|")
 
             if genres:
                 raw_similarity = sum(genre_preferences.get(genre, 0) for genre in genres) / len(genres)
