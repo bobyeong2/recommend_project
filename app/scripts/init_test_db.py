@@ -4,10 +4,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 import asyncio
 from sqlalchemy import text
-from app.core.database import async_engine
+from app.core.database import engine
 
 async def init_test_db():
-    async with async_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.execute(text("DROP TABLE IF EXISTS user_ratings"))
         await conn.execute(text("DROP TABLE IF EXISTS movie_stats"))
         await conn.execute(text("DROP TABLE IF EXISTS users"))
