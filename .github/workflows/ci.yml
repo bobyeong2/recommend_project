@@ -2,11 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
-  
+    branches: [ main ]
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   test:
@@ -24,7 +22,7 @@ jobs:
           --health-cmd="mysqladmin ping"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
+          --health-retries=5
       
       redis:
         image: redis:7-alpine
@@ -34,56 +32,50 @@ jobs:
           --health-cmd="redis-cli ping"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=3
-    
+          --health-retries=5
+
     env:
       TESTING: true
       SKIP_MODEL_LOAD: true
-      DATABASE_URL: mysql+aiomysql://root:rootpass@localhost:3306/bob_movie_db
+      DATABASE_URL: mysql+aiomysql://root:rootpass@localhost:3306/bob_movie_db_test
       REDIS_URL: redis://localhost:6379
-      SECRET_KEY: test-secret-key-for-ci-do-not-use-in-production
-      JWT_SECRET_KEY: test-secret-key-for-ci
+      SECRET_KEY: test-secret-key-for-ci-only
+      JWT_SECRET_KEY: test-jwt-secret-key-for-ci-only
       JWT_ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       REFRESH_TOKEN_EXPIRE_DAYS: 7
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pipenv
-          pipenv install --dev --system
-      
-      - name: Initialize test database
-        run: |
-          PYTHONPATH=. python app/scripts/init_test_db.py
-      
-      - name: Run pytest
-        run: |
-          pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=xml
-      
-      - name: Upload coverage reports
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
 
-      - name: Test summary
-        if: always()
-        run: |
-          echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All tests passed" >> $GITHUB_STEP_SUMMARY
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install pipenv
+        pipenv install --dev --system
+    
+    - name: Initialize test database
+      run: |
+        PYTHONPATH=. python app/scripts/init_test_db.py
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
