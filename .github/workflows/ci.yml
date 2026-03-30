@@ -15,7 +15,7 @@ jobs:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: rootpass
-          MYSQL_DATABASE: bob_movie_db
+          MYSQL_DATABASE: bob_movie_db_test
         ports:
           - 3306:3306
         options: >-
