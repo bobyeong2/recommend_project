@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Dict
 from pathlib import Path
 
-from app.ml.models.ncf import NCF
+
 import math # 250321추가
 from collections import Counter # 250321추가
 import logging
@@ -24,7 +24,9 @@ class MovieRecommender:
     
     def __init__(self, model_path: str = "models/best_ncf_model.pth"):
         
+        # lazy import
         import torch
+        from app.ml.models.ncf import NCF
         
         if self._initialized:
             return
