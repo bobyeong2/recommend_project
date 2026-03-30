@@ -7,7 +7,7 @@ from app.core.database import engine, Base
 from app.models.movie import Movie
 from app.models.user import User
 from app.models.training import TrainingUser, TrainingRating
-from app.models.rating import UserRating
+from app.models.user_rating import UserRating
 
 async def create_tables():
     async with engine.begin() as conn:

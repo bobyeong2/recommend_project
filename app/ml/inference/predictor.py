@@ -319,7 +319,11 @@ class MovieRecommender:
         scored_movies = []
         for movie in candidate_movies:
             movie_id = movie["movie_id"]
-            genres = movie["genres"].split("|") if movie["genres"] else []
+            # 수정 후
+            if isinstance(movie["genres"], list):
+                genres = movie["genres"]
+            else:
+                genres = movie["genres"].split("|") if movie["genres"] else []
 
             if genres:
                 # 평균 유사도 
