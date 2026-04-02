@@ -43,6 +43,7 @@ pytest-asyncio = "*"
 redis = "*"
 prometheus-client = "*"
 pytest-cov = "*"
+locust = "*"
 
 [dev-packages]
 
