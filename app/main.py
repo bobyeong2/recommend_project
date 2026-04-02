@@ -98,15 +98,46 @@ async def root():
 @app.get("/health")
 async def health_check():
     """상세 헬스 체크"""
-    # Redis 연결 상태 확인
-    redis_connected = redis_client.redis is not None
+    from app.core.database import engine
+    from sqlalchemy import text
     
-    return {
+    health_status = {
         "status": "healthy",
-        "model_loaded": True,
-        "database": "connected",
-        "redis": "connected" if redis_connected else "disconnected"
+        "checks": {}
     }
+    
+    # 1. DB 연결 체크
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        health_status["checks"]["database"] = "connected"
+    except Exception as e:
+        health_status["checks"]["database"] = f"disconnected: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    # 2. Redis 연결 체크
+    try:
+        if redis_client.redis:
+            await redis_client.redis.ping()
+            health_status["checks"]["redis"] = "connected"
+        else:
+            health_status["checks"]["redis"] = "disconnected"
+    except Exception as e:
+        health_status["checks"]["redis"] = f"disconnected: {str(e)}"
+    
+    # 3. NCF 모델 로딩 체크
+    try:
+        recommender = MovieRecommender()
+        if recommender._initialized:
+            health_status["checks"]["model"] = "loaded"
+        else:
+            health_status["checks"]["model"] = "not_loaded"
+            health_status["status"] = "unhealthy"
+    except Exception as e:
+        health_status["checks"]["model"] = f"error: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    return health_status
     
 @app.get("/metrics")
 async def prometheus_metrics():
